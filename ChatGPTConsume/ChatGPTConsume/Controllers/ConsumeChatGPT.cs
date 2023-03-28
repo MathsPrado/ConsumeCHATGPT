@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using ChatGPTConsume.Service.Interface;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Text;
@@ -9,35 +10,28 @@ namespace ChatGPTConsume.Controllers
     [ApiController]
     public class ConsumeChatGPT : ControllerBase
     {
-        private readonly HttpClient _httpClient;
+        private readonly IConsumeChatGPTService _service;
 
-        public ConsumeChatGPT(HttpClient httpClient)
+        public ConsumeChatGPT(IConsumeChatGPTService service)
         {
-            _httpClient = httpClient;
-            _httpClient.DefaultRequestHeaders.Add("authorization", "Bearer YOUR KEY"); //YOU KEY https://platform.openai.com/account/api-keys
-
+            _service = service;
         }
+
 
 
         [HttpPost("responder-pergunta")]
         public async Task<ActionResult> Responder(string pergunta)
         {
-            var content = new StringContent("{\"model\": \"text-davinci-001\", \"prompt\": \"" + pergunta + "\",\"temperature\": 1,\"max_tokens\": 100}",
-                Encoding.UTF8, "application/json");
+            if (string.IsNullOrEmpty(pergunta))
+                return BadRequest();
 
-            HttpResponseMessage response = await _httpClient.PostAsync("https://api.openai.com/v1/completions", content);
+            var result = await _service.PostQuestionAPI(pergunta);
 
-            string responseString = await response.Content.ReadAsStringAsync();
-
-            var dyData = JsonConvert.DeserializeObject<dynamic>(responseString);
-
-            string guess = dyData!.choices[0].text;
-
-            if (string.IsNullOrEmpty(guess))
+            if (string.IsNullOrEmpty(result))
             {
                 return BadRequest();
             }
-            return Ok(guess);
+            return Ok(result);
         }
 
         static string GuessCommand(string raw)
